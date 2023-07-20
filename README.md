@@ -5,3 +5,5 @@
 编译指令：`cargo run -- -koopa hello.c -o hello.koopa`
 
 启动docker指令：` docker run -it --rm -v <project path>:/root/compiler maxxing/compiler-dev bash`
+
+lv1测试：`docker run -it --rm -v 项目目录:/root/compiler maxxing/compiler-dev autotest -koopa -s lv1 /root/compiler`

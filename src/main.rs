@@ -1,6 +1,6 @@
 use lalrpop_util::lalrpop_mod;
 use std::env::args;
-use std::fs::read_to_string;
+use std::fs::{read_to_string, write};
 use std::io::Result;
 mod ast;
 
@@ -15,7 +15,7 @@ fn main() -> Result<()> {
     let mode = args.next().unwrap();
     let input = args.next().unwrap();
     args.next();
-    let output = args.next().unwrap();
+    let mut output = args.next().unwrap();
 
     // 读取输入文件
     let input = read_to_string(input)?;
@@ -24,6 +24,8 @@ fn main() -> Result<()> {
     let ast = sysy::CompUnitParser::new().parse(&input).unwrap();
 
     // 输出解析得到的 AST
-    println!("{:#?}", ast);
+    write(&mut output, ast.to_string()).unwrap();
+
+    println!("{}", ast);
     Ok(())
 }
