@@ -58,7 +58,7 @@ pub struct Stmt {
 
 impl fmt::Display for Stmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ret {}", self.num)
+        write!(f, "    ret {}", self.num)
     }
 }
 

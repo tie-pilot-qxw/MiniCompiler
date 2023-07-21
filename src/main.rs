@@ -5,6 +5,7 @@ use std::fs::{read_to_string, write};
 use std::io::Result;
 mod ast;
 mod generate_asm;
+use generate_asm::{ProgramInfo, GenerateAsm};
 
 // 引用 lalrpop 生成的解析器
 // 因为我们刚刚创建了 sysy.lalrpop, 所以模块名是 sysy
@@ -64,9 +65,13 @@ fn main() -> Result<()> {
         }
     }
     */
-
-    // write(&mut output, ast.to_string()).unwrap();
-
-    // println!("{}", ast);
+    println!("{}",mode);
+    if mode == "-koopa" {
+        write(&mut output, ast.to_string()).unwrap();
+        println!("{}", ast);
+    } else {
+        write(&mut output, program.generate(ProgramInfo::new(&program, None))).unwrap();
+        println!("{}", program.generate(ProgramInfo::new(&program, None)));
+    }
     Ok(())
 }
