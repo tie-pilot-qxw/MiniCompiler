@@ -1,5 +1,5 @@
 /target
-/.*.c
-/.*.koopa
-/.*.S
+*.c
+*.koopa
+*.S
 /.vscode
