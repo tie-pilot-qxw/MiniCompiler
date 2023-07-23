@@ -1,23 +1,31 @@
-use koopa::ir::{Program, FunctionData, entities::ValueData, layout::BasicBlockNode, ValueKind, Function, Value};
+use koopa::ir::{
+    entities::ValueData, layout::BasicBlockNode, Function, FunctionData, Program, Value, ValueKind,
+};
 
-#[derive(Clone,Copy)]
-pub struct ProgramInfo<'p>{
+#[derive(Clone, Copy)]
+pub struct ProgramInfo<'p> {
     program: &'p Program,
     which_func: Option<Function>,
 }
 
 impl<'p> ProgramInfo<'p> {
     pub fn new(program: &'p Program, which_func: Option<Function>) -> Self {
-        Self { program, which_func }
+        Self {
+            program,
+            which_func,
+        }
     }
 
-    pub fn program(&self) -> &'p Program {
-        self.program
-    }
+    // pub fn program(&self) -> &'p Program {
+    //     self.program
+    // }
 
     pub fn value(&self, value: Value) -> &ValueData {
         assert_ne!(self.which_func, None);
-        self.program.func(self.which_func.unwrap()).dfg().value(value)
+        self.program
+            .func(self.which_func.unwrap())
+            .dfg()
+            .value(value)
     }
 }
 pub trait GenerateAsm {
@@ -25,10 +33,10 @@ pub trait GenerateAsm {
 }
 
 impl GenerateAsm for Program {
-    fn generate(&self, info: ProgramInfo) -> String{
+    fn generate(&self, _info: ProgramInfo) -> String {
         let mut ans = String::new();
         ans += "    .text\n"; // 声明之后的数据需要被放入代码段中
-        
+
         // 声明全局符号
         // 遍历所有的指向函数的指针
         for &func in self.func_layout() {
@@ -48,13 +56,13 @@ impl GenerateAsm for Program {
 }
 
 impl GenerateAsm for FunctionData {
-    fn generate(&self, info: ProgramInfo) -> String{
+    fn generate(&self, info: ProgramInfo) -> String {
         let mut ans = String::new();
         ans += &self.name()[1..];
         ans += ":\n";
 
         // 遍历函数，查看函数内部的基本块
-        for (&bb, node) in self.layout().bbs() {
+        for (&_bb, node) in self.layout().bbs() {
             // 生成基本块的信息
             ans += &node.generate(info);
         }
@@ -63,7 +71,7 @@ impl GenerateAsm for FunctionData {
 }
 
 impl GenerateAsm for BasicBlockNode {
-    fn generate(&self, info: ProgramInfo) -> String{
+    fn generate(&self, info: ProgramInfo) -> String {
         let mut ans = String::new();
         // 遍历基本块里的指令(value)的指针
         for &inst in self.insts().keys() {
@@ -77,8 +85,7 @@ impl GenerateAsm for BasicBlockNode {
 }
 
 impl GenerateAsm for ValueData {
-    fn generate(&self, info: ProgramInfo) -> String{
-        
+    fn generate(&self, info: ProgramInfo) -> String {
         match self.kind() {
             ValueKind::Integer(int) => {
                 // 处理 integer 指令
@@ -98,7 +105,7 @@ impl GenerateAsm for ValueData {
                 ans
             }
             // 其他
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
