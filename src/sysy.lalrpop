@@ -31,7 +31,28 @@ Block: Block = "{" <stmt: Stmt> "}" => Block { <> };
 
 Stmt: Stmt = "return" <exp: Exp> ";" => Stmt { <> };
 
-Exp: Exp = <unary_exp: UnaryExp> => Exp { <> };
+Exp: Exp = <add_exp: AddExp> => Exp { <> };
+
+MulExp: MulExp = {
+    <unary_exp: UnaryExp> => MulExp::UnaryExp( <> ),
+    <mul_exp: MulExp> <sign: MulSign> <unary_exp: UnaryExp> => MulExp::MulExp( Box::new(mul_exp), sign, unary_exp ),
+};
+
+MulSign: MulSign = {
+    "*" => MulSign::Mul,
+    "/" => MulSign::Div,
+    "%" => MulSign::Mod,
+};
+
+AddExp: AddExp = {
+    <mul_exp: MulExp> => AddExp::MulExp( <> ),
+    <add_exp: AddExp> <sign: AddSign> <mul_exp: MulExp> => AddExp::AddExp( Box::new(add_exp), sign, mul_exp  ),
+};
+
+AddSign: AddSign = {
+    "+" => AddSign::Add,
+    "-" => AddSign::Sub,
+};
 
 PrimaryExp: PrimaryExp = {
     "(" <exp: Exp> ")" => PrimaryExp::Exp ( Box::new( <> ) ),
