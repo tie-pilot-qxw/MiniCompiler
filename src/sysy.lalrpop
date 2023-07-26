@@ -31,7 +31,39 @@ Block: Block = "{" <stmt: Stmt> "}" => Block { <> };
 
 Stmt: Stmt = "return" <exp: Exp> ";" => Stmt { <> };
 
-Exp: Exp = <add_exp: AddExp> => Exp { <> };
+Exp: Exp = <l_or_exp: LOrExp> => Exp { <> };
+
+LOrExp: LOrExp = {
+    <l_and_exp: LAndExp> => LOrExp::LAndExp( <> ),
+    <l_or_exp: LOrExp> "||" <l_and_exp: LAndExp> => LOrExp::Or( Box::new(l_or_exp), l_and_exp ),
+};
+
+LAndExp: LAndExp = {
+    <eq_exp: EqExp> => LAndExp::EqExp( <> ),
+    <l_and_exp: LAndExp> "&&" <eq_exp: EqExp> => LAndExp::And( Box::new(l_and_exp), eq_exp ),
+};
+
+EqExp: EqExp = {
+    <rel_exp: RelExp> => EqExp::RelExp( <> ),
+    <eq_exp: EqExp> <sign: EqSign> <rel_exp: RelExp> => EqExp::Eq( Box::new(eq_exp), sign, rel_exp ),
+};
+
+EqSign: EqSign = {
+    "==" => EqSign::Eq,
+    "!=" => EqSign::Neq,
+};
+
+RelExp: RelExp = {
+    <add_exp: AddExp> => RelExp::AddExp( <> ),
+    <rel_exp: RelExp> <sign: CmpSign> <add_exp: AddExp> => RelExp::Cmp( Box::new(rel_exp), sign, add_exp ),
+};
+
+CmpSign: CmpSign = {
+    "<=" => CmpSign::Leq,
+    ">=" => CmpSign::Meq,
+    "<" => CmpSign::Less,
+    ">" => CmpSign::More,
+};
 
 MulExp: MulExp = {
     <unary_exp: UnaryExp> => MulExp::UnaryExp( <> ),

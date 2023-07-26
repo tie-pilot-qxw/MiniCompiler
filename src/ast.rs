@@ -7,6 +7,12 @@ fn gen_var_name() -> String {
     format!("%{}", id.to_string())
 }
 
+fn to_logic(var: String, f: &mut Vec<u8>) -> String {
+    let output_name = gen_var_name();
+    writeln!(f, "    {} = ne {}, {}", output_name, var, "0").unwrap();
+    output_name
+}
+
 #[derive(Debug)]
 pub struct CompUnit {
     pub func_def: FuncDef,
@@ -71,13 +77,135 @@ impl Stmt {
 
 #[derive(Debug)]
 pub struct Exp {
-    pub add_exp: AddExp,
+    pub l_or_exp: LOrExp,
 }
 
 impl Exp {
     fn generate(&self, f: &mut Vec<u8>) -> String {
-        self.add_exp.generate(f)
+        self.l_or_exp.generate(f)
     }
+}
+
+#[derive(Debug)]
+pub enum LOrExp {
+    LAndExp(LAndExp),
+    Or(Box<LOrExp>, LAndExp),
+}
+
+impl LOrExp {
+    pub fn generate(&self, f: &mut Vec<u8>) -> String {
+        match self {
+            Self::LAndExp(l_and_exp) => l_and_exp.generate(f),
+
+            Self::Or(l_or_exp, l_and_exp) => {
+                let v1 = to_logic(l_or_exp.generate(f), f);
+                let v2 = to_logic(l_and_exp.generate(f), f);
+                let output_name = gen_var_name();
+                writeln!(f, "    {} = or {}, {}", output_name, v1, v2).unwrap();
+                output_name
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum LAndExp {
+    EqExp(EqExp),
+    And(Box<LAndExp>, EqExp),
+}
+
+impl LAndExp {
+    fn generate(&self, f: &mut Vec<u8>) -> String {
+        match self {
+            Self::And(l_and_exp, eq_exp) => {
+                let v1 = to_logic(l_and_exp.generate(f), f);
+                let v2 = to_logic(eq_exp.generate(f), f);
+                let output_name = gen_var_name();
+                writeln!(f, "    {} = and {}, {}", output_name, v1, v2).unwrap();
+                output_name
+            }
+
+            Self::EqExp(eq_exp) => eq_exp.generate(f),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum EqExp {
+    RelExp(RelExp),
+    Eq(Box<EqExp>, EqSign, RelExp),
+}
+
+impl EqExp {
+    fn generate(&self, f: &mut Vec<u8>) -> String {
+        match self {
+            Self::Eq(eq_exp, sign, rel_exp) => {
+                let v1 = eq_exp.generate(f);
+                let v2 = rel_exp.generate(f);
+                let output_name = gen_var_name();
+                match sign {
+                    EqSign::Eq => {
+                        writeln!(f, "    {} = eq {}, {}", output_name, v1, v2).unwrap();
+                    }
+                    EqSign::Neq => {
+                        writeln!(f, "    {} = ne {}, {}", output_name, v1, v2).unwrap();
+                    }
+                }
+                output_name
+            }
+
+            Self::RelExp(rel_exp) => rel_exp.generate(f),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum EqSign {
+    Eq,
+    Neq,
+}
+
+#[derive(Debug)]
+pub enum RelExp {
+    AddExp(AddExp),
+    Cmp(Box<RelExp>, CmpSign, AddExp),
+}
+
+impl RelExp {
+    fn generate(&self, f: &mut Vec<u8>) -> String {
+        match self {
+            Self::AddExp(add_exp) => add_exp.generate(f),
+
+            Self::Cmp(rel_exp, sign, add_exp) => {
+                let v1 = rel_exp.generate(f);
+                let v2 = add_exp.generate(f);
+                let output_name = gen_var_name();
+                match sign {
+                    CmpSign::Leq => {
+                        writeln!(f, "    {} = le {}, {}", output_name, v1, v2).unwrap();
+                    }
+                    CmpSign::Less => {
+                        writeln!(f, "    {} = lt {}, {}", output_name, v1, v2).unwrap();
+                    }
+                    CmpSign::Meq => {
+                        writeln!(f, "    {} = ge {}, {}", output_name, v1, v2).unwrap();
+                    }
+                    CmpSign::More => {
+                        writeln!(f, "    {} = gt {}, {}", output_name, v1, v2).unwrap();
+                    }
+                }
+                output_name
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CmpSign {
+    Less,
+    More,
+    Leq,
+    Meq,
 }
 
 #[derive(Debug)]
