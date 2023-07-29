@@ -39,8 +39,11 @@ fn main() -> Result<()> {
         write(&output, koopa_ir.clone()).unwrap();
         println!("{}", koopa_ir);
     } else {
-        write(&output, program.generate(ProgramInfo::new(&program, None))).unwrap();
-        println!("{}", program.generate(ProgramInfo::new(&program, None)));
+        let mut buf = Vec::new();
+        program.generate(&mut ProgramInfo::new(&program, None), &mut buf);
+        let risc_v = String::from_utf8(buf).unwrap();
+        write(&output, risc_v.clone()).unwrap();
+        println!("{}", risc_v);
     }
     Ok(())
 }
