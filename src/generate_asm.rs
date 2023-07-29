@@ -8,11 +8,14 @@ use koopa::ir::{
     BinaryOp, Function, FunctionData, Program, Value, ValueKind,
 };
 
-static RIG_NAME: AtomicUsize = AtomicUsize::new(0);
+static RIG_ID: AtomicUsize = AtomicUsize::new(0);
+static RIG_NAME: [&str; 15] = [
+    "t0", "t1", "t2", "t3", "t4", "t5", "t6", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7",
+];
 
 fn gen_rig_name() -> String {
-    let id = RIG_NAME.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    format!("t{}", id.to_string())
+    let id = RIG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    format!("{}", RIG_NAME[id])
 }
 
 #[derive(Clone)]
@@ -156,6 +159,43 @@ impl GenerateAsm for Return {
     }
 }
 
+fn get_output_for_binary(
+    bin: &Binary,
+    info: &mut ProgramInfo,
+    lhs: &String,
+    rhs: &String,
+) -> String {
+    let output: String;
+    if lhs[0..=0] != "x".to_owned() && rhs[0..=0] != "x".to_owned() {
+        if let ValueKind::Integer(_) = info.get_data(bin.lhs()).kind() {
+            output = lhs.clone();
+        } else if let ValueKind::Integer(_) = info.get_data(bin.rhs()).kind() {
+            output = rhs.clone();
+        } else {
+            output = gen_rig_name();
+        }
+    } else {
+        if lhs[0..=0] != "x".to_owned() || rhs[0..=0] != "x".to_owned() {
+            if lhs[0..=0] != "x".to_owned() {
+                if let ValueKind::Integer(_) = info.get_data(bin.lhs()).kind() {
+                    output = lhs.clone();
+                } else {
+                    output = gen_rig_name();
+                }
+            } else {
+                if let ValueKind::Integer(_) = info.get_data(bin.rhs()).kind() {
+                    output = rhs.clone();
+                } else {
+                    output = gen_rig_name();
+                }
+            }
+        } else {
+            output = gen_rig_name();
+        }
+    }
+    output
+}
+
 impl GenerateAsm for Binary {
     fn generate(&self, info: &mut ProgramInfo, f: &mut Vec<u8>) -> Option<String> {
         let find = info.query_value(info.get_key());
@@ -166,11 +206,11 @@ impl GenerateAsm for Binary {
         match self.op() {
             BinaryOp::Eq => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    xor {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    xor {output}, {lhs}, {rhs}").unwrap();
                 writeln!(f, "    seqz {output}, {output}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
@@ -180,11 +220,11 @@ impl GenerateAsm for Binary {
 
             BinaryOp::Sub => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    sub {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    sub {output}, {lhs}, {rhs}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
                 info.add_value(info.get_key(), output.clone());
@@ -193,11 +233,11 @@ impl GenerateAsm for Binary {
 
             BinaryOp::Add => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    add {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    add {output}, {lhs}, {rhs}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
                 info.add_value(info.get_key(), output.clone());
@@ -206,11 +246,11 @@ impl GenerateAsm for Binary {
 
             BinaryOp::Div => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    div {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    div {output}, {lhs}, {rhs}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
                 info.add_value(info.get_key(), output.clone());
@@ -219,11 +259,11 @@ impl GenerateAsm for Binary {
 
             BinaryOp::Mul => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    mul {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    mul {output}, {lhs}, {rhs}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
                 info.add_value(info.get_key(), output.clone());
@@ -232,11 +272,11 @@ impl GenerateAsm for Binary {
 
             BinaryOp::Mod => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    rem {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    rem {output}, {lhs}, {rhs}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
                 info.add_value(info.get_key(), output.clone());
@@ -245,11 +285,11 @@ impl GenerateAsm for Binary {
 
             BinaryOp::Le => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    sgt {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    sgt {output}, {lhs}, {rhs}").unwrap();
                 writeln!(f, "    seqz {output}, {output}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
@@ -259,11 +299,11 @@ impl GenerateAsm for Binary {
 
             BinaryOp::Ge => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    slt {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    slt {output}, {lhs}, {rhs}").unwrap();
                 writeln!(f, "    seqz {output}, {output}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
@@ -273,11 +313,11 @@ impl GenerateAsm for Binary {
 
             BinaryOp::And => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    and {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    and {output}, {lhs}, {rhs}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
                 info.add_value(info.get_key(), output.clone());
@@ -286,11 +326,11 @@ impl GenerateAsm for Binary {
 
             BinaryOp::Gt => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    sgt {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    sgt {output}, {lhs}, {rhs}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
                 info.add_value(info.get_key(), output.clone());
@@ -299,11 +339,11 @@ impl GenerateAsm for Binary {
 
             BinaryOp::Lt => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    slt {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    slt {output}, {lhs}, {rhs}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
                 info.add_value(info.get_key(), output.clone());
@@ -312,11 +352,11 @@ impl GenerateAsm for Binary {
 
             BinaryOp::Or => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    or {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    or {output}, {lhs}, {rhs}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
                 info.add_value(info.get_key(), output.clone());
@@ -325,11 +365,11 @@ impl GenerateAsm for Binary {
 
             BinaryOp::NotEq => {
                 info.set_key(self.lhs());
-                let lhs = info.get_data(self.lhs()).clone().generate(info, f);
+                let lhs = info.get_data(self.lhs()).clone().generate(info, f).unwrap();
                 info.set_key(self.rhs());
-                let rhs = info.get_data(self.rhs()).clone().generate(info, f);
-                let output = gen_rig_name();
-                writeln!(f, "    xor {output}, {}, {}", lhs.unwrap(), rhs.unwrap()).unwrap();
+                let rhs = info.get_data(self.rhs()).clone().generate(info, f).unwrap();
+                let output = get_output_for_binary(self, info, &lhs, &rhs);
+                writeln!(f, "    xor {output}, {lhs}, {rhs}").unwrap();
                 writeln!(f, "    snez {output}, {output}").unwrap();
                 // 表明当前value已经处理过了
                 info.set_key(tmp);
