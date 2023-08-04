@@ -27,7 +27,7 @@ FuncDef: FuncDef = {
 
 FuncType: FuncType = "int" => FuncType::Int;
 
-Block: Block = "{" <stmt: Stmt> "}" => Block { <> };
+Block: Block = "{" <items: (<BlockItem>)*> "}" => Block { <> };
 
 Stmt: Stmt = "return" <exp: Exp> ";" => Stmt { <> };
 
@@ -89,6 +89,7 @@ AddSign: AddSign = {
 PrimaryExp: PrimaryExp = {
     "(" <exp: Exp> ")" => PrimaryExp::Exp ( Box::new( <> ) ),
     <num: Number> => PrimaryExp::Number ( <> ),
+    <val: LVal> => PrimaryExp::LVal ( <> ),
 };
 
 Number: Number = <num: IntConst> => Number { <> };
@@ -115,3 +116,23 @@ IntConst: i32 = {
     r"0[0-7]*" => i32::from_str_radix(<>, 8).unwrap(),
     r"0[xX][0-9a-fA-F]+" => i32::from_str_radix(&<>[2..], 16).unwrap(),
 }
+
+Decl: Decl = <const_decl: ConstDecl> => Decl{ <> };
+
+ConstDecl: ConstDecl = "const" "int" <const_def: ConstDef> <mut defs: ("," <ConstDef>)*> ";" => {
+    defs.insert(0, const_def);
+    ConstDecl{defs}
+};
+
+ConstDef: ConstDef = <ident: Ident> "=" <val: ConstInitVal> => ConstDef{ <> };
+
+ConstInitVal: ConstInitVal = <exp: ConstExp> => ConstInitVal{ <> };
+
+ConstExp: ConstExp = <exp: Exp> => ConstExp{ <> };
+
+BlockItem: BlockItem = {
+    <decl: Decl> => BlockItem::Decl(decl),
+    <stmt: Stmt> => BlockItem::Stmt(stmt),
+};
+
+LVal: LVal = <ident: Ident> => LVal{ <> };
