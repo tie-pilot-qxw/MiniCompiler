@@ -115,14 +115,16 @@ IntConst: i32 = {
     r"[1-9][0-9]*" => i32::from_str_radix(<>, 10).unwrap(),
     r"0[0-7]*" => i32::from_str_radix(<>, 8).unwrap(),
     r"0[xX][0-9a-fA-F]+" => i32::from_str_radix(&<>[2..], 16).unwrap(),
-}
+};
 
 Decl: Decl = <const_decl: ConstDecl> => Decl{ <> };
 
-ConstDecl: ConstDecl = "const" "int" <const_def: ConstDef> <mut defs: ("," <ConstDef>)*> ";" => {
+ConstDecl: ConstDecl = "const" <typ: BType> <const_def: ConstDef> <mut defs: ("," <ConstDef>)*> ";" => {
     defs.insert(0, const_def);
-    ConstDecl{defs}
+    ConstDecl{typ, defs}
 };
+
+BType: BType = "int" => BType::I32;
 
 ConstDef: ConstDef = <ident: Ident> "=" <val: ConstInitVal> => ConstDef{ <> };
 

@@ -511,6 +511,7 @@ impl Decl {
 
 #[derive(Debug)]
 pub struct  ConstDecl {
+    pub typ: BType,
     pub defs: Vec<ConstDef>,
 }
 
@@ -520,6 +521,11 @@ impl ConstDecl {
             def.generate(f, table);
         }
     }
+}
+
+#[derive(Debug)]
+pub enum BType {
+    I32,
 }
 
 #[derive(Debug)]
