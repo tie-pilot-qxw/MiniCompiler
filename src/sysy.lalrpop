@@ -29,7 +29,10 @@ FuncType: FuncType = "int" => FuncType::Int;
 
 Block: Block = "{" <items: (<BlockItem>)*> "}" => Block { <> };
 
-Stmt: Stmt = "return" <exp: Exp> ";" => Stmt { <> };
+Stmt: Stmt = {
+    "return" <exp: Exp> ";" => Stmt::Ret(<>),
+    <lval: LVal> "=" <exp: Exp> ";" => Stmt::Assign(<>),
+};
 
 Exp: Exp = <l_or_exp: LOrExp> => Exp { <> };
 
@@ -117,11 +120,19 @@ IntConst: i32 = {
     r"0[xX][0-9a-fA-F]+" => i32::from_str_radix(&<>[2..], 16).unwrap(),
 };
 
-Decl: Decl = <const_decl: ConstDecl> => Decl{ <> };
+Decl: Decl = {
+    <const_decl: ConstDecl> => Decl::ConstDecl(const_decl),
+    <var_decl: VarDecl> => Decl::VarDecl(var_decl),
+};
 
 ConstDecl: ConstDecl = "const" <typ: BType> <const_def: ConstDef> <mut defs: ("," <ConstDef>)*> ";" => {
     defs.insert(0, const_def);
     ConstDecl{typ, defs}
+};
+
+VarDecl: VarDecl = <typ: BType> <var_def: VarDef> <mut defs: ("," <VarDef>)*> ";" => {
+    defs.insert(0, var_def);
+    VarDecl{typ, defs}
 };
 
 BType: BType = "int" => BType::I32;
@@ -138,3 +149,10 @@ BlockItem: BlockItem = {
 };
 
 LVal: LVal = <ident: Ident> => LVal{ <> };
+
+VarDef: VarDef = {
+    <ident: Ident> => VarDef::NoInit(<>),
+    <ident: Ident> "=" <val: InitVal> => VarDef::Init(<>),
+};
+
+InitVal: InitVal = <exp: Exp> => InitVal{<>};

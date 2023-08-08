@@ -72,14 +72,31 @@ impl Block {
 }
 
 #[derive(Debug)]
-pub struct Stmt {
-    pub exp: Exp,
+pub enum Stmt {
+    Ret(Exp),
+    Assign(LVal, Exp),
 }
 
 impl Stmt {
     fn generate(&self, f: &mut Vec<u8>, table: &mut SymbolTable) {
-        let var_name = self.exp.generate(f, table);
-        writeln!(f, "    ret {}", var_name).unwrap();
+        match self {
+            Self::Ret(exp) => {
+                let var_name = exp.generate(f, table);
+                writeln!(f, "    ret {}", var_name).unwrap();
+            }
+
+            Self::Assign(lval, exp) => {
+                let val = exp.generate(f, table);
+                let typ = table.var.get(&lval.ident).unwrap();
+                match typ {
+                    DataType::Int => {
+                        writeln!(f, "    store {val}, @{}", lval.ident).unwrap();
+                    }
+                    _ => unreachable!()
+                }
+            }
+        }
+        
     }
 }
 
@@ -421,7 +438,7 @@ impl PrimaryExp {
         match self {
             Self::Exp(exp) => exp.generate(f, table),
             Self::Number(num) => num.generate().to_string(),
-            Self::LVal(val) => val.generate(table),
+            Self::LVal(val) => val.generate(f, table),
         }
     }
 
@@ -499,13 +516,20 @@ pub enum UnaryOp {
 }
 
 #[derive(Debug)]
-pub struct Decl {
-    pub const_decl: ConstDecl,
+pub enum Decl {
+    ConstDecl(ConstDecl),
+    VarDecl(VarDecl),
 }
 
 impl Decl {
     fn generate(&self, f: &mut Vec<u8>, table: &mut SymbolTable) {
-        self.const_decl.generate(f, table);
+        match self {
+            Self::ConstDecl(const_decl) => const_decl.generate(f, table),
+
+            Self::VarDecl(var_decl) => {
+                var_decl.generate(f, table);
+            }
+        }
     }
 }
 
@@ -526,6 +550,12 @@ impl ConstDecl {
 #[derive(Debug)]
 pub enum BType {
     I32,
+}
+
+impl BType {
+    fn generate(&self, f: &mut Vec<u8>) {
+        write!(f, "i32").unwrap();
+    }
 }
 
 #[derive(Debug)]
@@ -589,11 +619,17 @@ pub struct LVal {
 }
 
 impl LVal {
-    fn generate(&self, table: &mut SymbolTable) -> String {
+    fn generate(&self, f: &mut Vec<u8>, table: &mut SymbolTable) -> String {
         let val = table.var.get(&self.ident).unwrap();
         match val {
             DataType::ConstInt(val) => {
                 val.to_string()
+            }
+
+            DataType::Int => {
+                let output = gen_var_name();
+                writeln!(f, "    {output} = load @{}", self.ident).unwrap();
+                output
             }
         }
     }
@@ -604,6 +640,63 @@ impl LVal {
             DataType::ConstInt(val) => {
                 *val
             }
+            DataType::Int => unreachable!()
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct VarDecl {
+    pub typ: BType,
+    pub defs: Vec<VarDef>,
+}
+
+impl VarDecl {
+    fn generate(&self, f: &mut Vec<u8>, table: &mut SymbolTable) {
+        for def in &self.defs {
+            def.generate(f, table, &self.typ);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum VarDef {
+    Init(String, InitVal),
+    NoInit(String),
+}
+
+impl VarDef {
+    fn generate(&self, f: &mut Vec<u8>, table: &mut SymbolTable, typ: &BType) {
+        match self {
+            Self::Init(ident, val) => {
+                // @x = alloc i32
+                write!(f, "    @{ident} = alloc ").unwrap();
+                typ.generate(f);
+                write!(f, "\n").unwrap();
+                let input = val.generate(f, table);
+                writeln!(f, "    store {input}, @{ident}").unwrap();
+                table.var.insert(ident.to_string(), DataType::Int);
+            }
+
+            Self::NoInit(ident) => {
+                // @x = alloc i32
+                write!(f, "    @{ident} = alloc ").unwrap();
+                typ.generate(f);
+                write!(f, "\n").unwrap();
+                table.var.insert(ident.to_string(), DataType::Int);
+
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct InitVal {
+    pub exp: Exp,
+}
+
+impl InitVal {
+    fn generate(&self, f: &mut Vec<u8>, table: &mut SymbolTable) -> String {
+        self.exp.generate(f, table)
     }
 }

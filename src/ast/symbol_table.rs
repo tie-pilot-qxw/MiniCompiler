@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 pub(super) enum DataType {
     ConstInt(i32),
+    Int,
 }
 
 pub(super) struct SymbolTable {
